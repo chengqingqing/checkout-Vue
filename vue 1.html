@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>vue  购物车</title>
+  <link href="css/bootstrap.css" rel="stylesheet" />
+  <style>
+    .item-chek-btn { width: 20px; height: 20px; display: inline-block; background: url("img/1.jpg") no-repeat 100% 100%;}
+    .checked { background: url("img/2.jpg") no-repeat 100% 100%;}
+  </style>
+  <script src="js/jquery.js"></script>
+  <script src="js/bootstrap-modal.js"></script>
+  <script src="js/vue.js"></script><!-- 这里的顺序不要变1 -->
+  <script src="js/vue-resource.js"></script><!-- 这里的顺序不要变2 -->
+
+
+</head>
+<body>
+  <div id="app">
+    <div class="container">
+        <h2>{{ title }}</h2>
+        <table class="table">
+          <thead>
+          <tr>
+            <th>&nbsp;</th>
+            <th>商品信息</th>
+					  <th>商品金额</th>
+					  <th>商品数量</th>
+					  <th>总金额</th>
+					  <th>编辑</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item,index) in productList">
+            <td><a href="javascript:;" v-bind:class="{'checked':item.checked}" @click="selectedProduct(item)" class="item-chek-btn"></a></td>
+            <td><img v-bind:src="item.productImage" alt="" width="30" height="30"/> {{index +" | "+ item.productName }}</td>
+            <td>{{ item.productPrice | formatMoney }}</td>
+            <td>
+              <button type="button" class="btn btn-danger" v-on:click="changeMoney(item,-1)">-</button>
+              <div style="display: inline-block; min-width: 30px; text-align: center;"><input type="text" v-model="item.productQuentity"></div>
+              <button type="button"  class="btn btn-danger" v-on:click="changeMoney(item,1)">+</button>
+            </td>
+            <td>{{ item.productPrice*item.productQuentity | money('元') }}</td>
+            <td>
+              <a data-toggle="modal" href="#example" class="btn btn-primary btn-large" @click="delConfirm(item)">移除</a>
+            </td>
+          </tr>
+
+          <tr>
+            <td><a href="javascript:;" class="item-chek-btn" id="checkall" :class="{'checked':checkAllFlag}" @click="checkAll('checkall',true)"></a>全选</td>
+            <td @click="checkAll('checkall',false)">取消全选</td>
+            <td>总购买价 {{ totalMoney }} </td>
+            <td>总购买数量 {{ totalProductNum }}</td>
+  					<td>&nbsp;</td>
+  					<td colspan="2"><button type="button" class="btn btn-danger" @click="emptyCart()">清空购物车</button></td>
+				</tr>
+      </tbody>
+        </table>
+
+        <p v-if="totalProductNum <= 0">您的购物车为空 </p>
+        <p v-else>您选择了<span>{{ totalProductNum }}</span>件商品</p>
+
+    </div>
+
+    <!--删除一个区域的start-->
+    <div class="container" id="showModal" v-bind:class="{'md-show':delFlag}">
+        <!--<h2>Example of creating Modals with Bootstrap</h2>-->
+        <div id="example" class="modal hide fade in" style="display: none; ">
+			<div class="modal-header">
+				<a class="close" data-dismiss="modal"   @click="delFlag=false">×</a>
+				<h3>删除订单</h3>
+			</div>
+			<div class="modal-body">
+				<p>你确定删除此订单信息吗</p>
+			</div>
+			<div class="modal-footer">
+				<a href="#" class="btn btn-success"  data-dismiss="modal" id="btnModalConfirm" @click="delProduct()">确定删除</a>
+				<a href="#" class="btn" data-dismiss="modal" id="btnModalCancel" @click="delFlag=false" >取消删除</a>
+			</div>
+		</div>
+    </div>
+
+
+
+  </div>
+
+<script>
+/*创建一个Vue的实例
+*通过v-for指令渲染产品数据
+*使用Filter对金额和图片进行格式化
+*使用V-on实现产品金额的动态计算
+*综合演示
+*/
+
+  var oldlist = [
+    {id:1000,name:'iphone5s',quantity:3,price:4300},
+		{id:2000,name:'iphone5s',quantity:3,price:4300},
+		{id:3000,name:'iphone5',quantity:30,price:3300},
+		{id:4000,name:'imac',quantity:4,price:23000},
+		{id:5000,name:'ipad',quantity:5,price:6900}
+  ];
+  var list = [//定义一个变量
+  		{"productId":"600100002115","productName":"黄鹤楼香烟","productImage":"https://ss0.bdstatic.com/70cFuHSh_Q1YnxGkpoWK1HF6hhy/it/u=1625661925,3836246017&fm=23&gp=0.jpg","productPrice":19,"productQuentity":1},
+  		{"productId":"600100002120","productName":"加多宝","productImage":"https://ss1.bdstatic.com/70cFvXSh_Q1YnxGkpoWK1HF6hhy/it/u=1977175104,1743950491&fm=23&gp=0.jpg", "productPrice":23,"productQuentity":3},
+  		{"productId":"600100002130","productName":"大宝护肤","productImage":"https://ss0.bdstatic.com/70cFvHSh_Q1YnxGkpoWK1HF6hhy/it/u=2558352987,967744455&fm=23&gp=0.jpg","productPrice":30,"productQuentity":2},
+  		{"productId":"600100002140","productName":"小兔子音乐","productImage":"https://ss3.bdstatic.com/70cFv8Sh_Q1YnxGkpoWK1HF6hhy/it/u=2904099363,919451916&fm=23&gp=0.jpg","productPrice":40,"productQuentity":5},
+  		{"productId":"600100002150","productName":"小宝宝水壶","productImage":"https://ss0.bdstatic.com/70cFvHSh_Q1YnxGkpoWK1HF6hhy/it/u=163271989,291239489&fm=23&gp=0.jpg","productPrice":50,"productQuentity":4}
+  	];
+
+  var vm = new Vue({
+    el:'#app',
+    data: {
+        title:'hello world',
+        productList:[],
+        totalMoney:0,
+        checkAllFlag:false,
+        delFlag:false,
+        curProduct:false,
+        totalProductNum: 0
+    },
+    filters: {
+        formatMoney: function(value){
+          return "￥"+value.toFixed(2); //数字2位一般不前端处理为2位小数点，有精度问题 一般后端处理
+        }
+    },
+    mounted:function(){
+      this.$nextTick(function(){
+          vm.cartView();
+      })
+
+    },
+    methods:{
+      cartView: function(){
+
+        this.title = "xiali";
+        let _this=this;
+        this.productList = list;
+        //vm.$http.post('http://weixin2.lumingyouyou.com:8080/caishuijia_server/userController/getUserById.json',{"userId":'f5d3ea786b9e46299c74b79c33a4cc34'})
+        //.then(function(res){
+        //  _this.productList = list;
+        // _this.totalMoney =18;
+        //});//this相当于vue实例 调用vue下的$http下的方法  方法有get  za
+      },
+      changeMoney: function(item,way){
+        if(way>0){
+          item.productQuentity++
+        }else{
+          if(item.productQuentity>1){
+            item.productQuentity--
+          }else{
+            item.productQuentity=1
+          }
+        }
+        this.calcTotalPrice();
+        this.calcTotalNum();
+      },
+      selectedProduct: function(item){
+        if(typeof item.checked=="undefind"){  //checked 作为一个属性来调用的，如果这个属性不存在，则打印出 undefind
+            this.$set(item,"checked",true)//vm.$set(object,key,value)
+        }else{
+            item.checked=!item.checked;  //取反
+        }
+        this.calcTotalPrice();
+        this.calcTotalNum();
+      },
+      checkAll: function(obj,flag){
+        this.checkAllFlag=flag;
+        var _this=this;
+        this.productList.forEach(function(item,index){
+          if(typeof item.checked=="undefind"){
+              _this.$set(item,"checked",_this.checkAllFlag);
+          }else{
+              item.checked=_this.checkAllFlag;
+          }
+
+        });
+        this.calcTotalPrice();
+        this.calcTotalNum();
+
+      },
+      calcTotalPrice:function(){   //计算价格的的方法，作为一个游动的方法，实时的动态更新
+        var _this=this;
+        _this.totalMoney=0;
+        this.productList.forEach(function(item,index){  //forEach(function(item,index){})  forEach 本身就有两个参数  一个是循环的个体 一个是索引
+
+          if(item.checked==true){
+            _this.totalMoney += item.productPrice*item.productQuentity; //单价*数量 productPrice","productQuentity
+          }
+        })
+      },
+      calcTotalNum : function(){
+        var _this=this;
+        _this.totalProductNum=0;
+        this.productList.forEach(function(item,index){
+          if(item.checked==true){
+            _this.totalProductNum += item.productQuentity;
+          }
+        })
+      },
+
+      delConfirm: function(item){
+          this.delFlag=true;
+          this.curProduct=item;
+      },
+      delProduct: function(){
+        var index = this.productList.indexOf(this.curProduct);
+        this.productList.splice(index,1);
+        this.delFlag=false;
+
+      },
+      hasClass: function(obj, cls){
+        return obj.className.match(new RegExp('(\\s|^)' + cls + '(\\s|$)'));
+      },
+      addClass: function(obj, cls){
+        if(!this.hasClass(obj, cls)) obj.className += " " + cls;
+      },
+      emptyCart: function(){
+        this.productList=null;
+      }
+
+    }
+
+  });
+  //定义全局的过滤器
+  Vue.filter('money', function(value,type){
+    return "￥"+value.toFixed(2)+type;
+  })
+
+
+</script>
+
+</body>
+</html>
